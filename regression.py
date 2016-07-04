@@ -19,23 +19,24 @@ def data2(n=50):
 
 
 class Regression():
-    def __init__(self, X, y, k=kernel.Kernel(kernel.RBF, sgm=1., beta=1.), sgm=1.):
+    def __init__(self, k=kernel.Kernel(kernel.RBF, sgm=1., beta=1.), sgm=1.):
+
+        self.params = {'sgm':sgm}
+        self.kernel = k
+
+    def fit(self, X, y):
         assert X.ndim == 2
         self.X = X
 
         assert y.ndim in [1,2]
-
         if y.ndim == 1: self.y = y.reshape(-1,1)
         else: self.y = y
+        assert self.y.shape[1] == 1
 
         assert self.X.shape[0] == self.y.shape[0]
-        assert self.y.shape[1] == 1
 
         self.n, self.dim = self.X.shape
 
-        self.params = {'sgm':sgm}
-
-        self.kernel = k
         self.K = self.kernel(self.X)
 
     def log_marginal_likelihood(self):
@@ -57,7 +58,7 @@ class Regression():
         return np.array([0.5 * np.sum(A * dK_dtheta) for dK_dtheta in K_grads])
 
 
-    def optimize(self, random=False):
+    def optimize(self, random=False, verbose=False):
         before = (self.param_array, -self.log_marginal_likelihood())
         if random:
             init = np.random.rand(*self.param_array.shape)*3
@@ -71,7 +72,7 @@ class Regression():
 
         res = minimize(fun, init, method='L-BFGS-B', jac=True,
                        bounds=[(1e-10,None)]+self.kernel.bounds,
-                       options={'disp':True})
+                       options={'disp':verbose})
 
         if res.fun < before[1]:
             self.param_array = res.x
@@ -133,11 +134,13 @@ var; function to predicted variance
 
 if __name__ == "__main__":
     X,y=data1(50,0.1)
-    model = Regression(X,y)
+    model = Regression()
+    model.fit(X,y)
     for i in range(10):
         model.optimize(True)
 
     model.plot((-1,11), "output.png")
+    plt.show()
     print(model.grad_log_marginal_likelihood())
     print(model.log_marginal_likelihood())
     print(model.param_array)
