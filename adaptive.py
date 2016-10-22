@@ -24,7 +24,7 @@ def data2(n=50):
     return (X,y)
 
 
-class Regression():
+class AdaptiveRegression():
     def __init__(self, k=kernel.Kernel(kernel.RBF, sgm=1., beta=1.), sgm=1.):
 
         self.params = {'sgm':sgm}
@@ -45,26 +45,31 @@ class Regression():
 
         self.K = self.kernel(self.X)
 
-    def log_marginal_likelihood(self):
-        Ky = self.K()+self.params['sgm']*np.identity(self.n)
-        L = cholesky(Ky, lower=True)
-        alpha = solve_triangular(L, self.y, lower=True)[:,0]
+        self.err = self.predict(X) - y
 
-        return (- 0.5 * np.dot(alpha, alpha)
-                - np.sum(np.log(np.diagonal(L)))
-                - 0.5 * self.n * np.log(2*np.pi))
+    def log_marginal_likelihood(self):
+        raise NotImplementedError()
+        #Ky = self.K()+self.params['sgm']*np.identity(self.n)
+        #L = cholesky(Ky, lower=True)
+        #alpha = solve_triangular(L, self.y, lower=True)[:,0]
+
+        #return (- 0.5 * np.dot(alpha, alpha)
+        #        - np.sum(np.log(np.diagonal(L)))
+        #        - 0.5 * self.n * np.log(2*np.pi))
 
     def grad_log_marginal_likelihood(self):
-        Ky = self.K()+self.params['sgm']*np.identity(self.n)
-        Ky_inv = inv(Ky)
-        alpha = solve(Ky, self.y, sym_pos=True)
-        A = matmul(alpha, alpha.T) - Ky_inv
-        K_grads = [np.identity(self.n)]+list(self.K.dK_dtheta())
+        raise NotImplementedError()
+        #Ky = self.K()+self.params['sgm']*np.identity(self.n)
+        #Ky_inv = inv(Ky)
+        #alpha = solve(Ky, self.y, sym_pos=True)
+        #A = matmul(alpha, alpha.T) - Ky_inv
+        #K_grads = [np.identity(self.n)]+list(self.K.dK_dtheta())
 
-        return np.array([0.5 * np.sum(A * dK_dtheta) for dK_dtheta in K_grads])
+        #return np.array([0.5 * np.sum(A * dK_dtheta) for dK_dtheta in K_grads])
 
 
     def optimize(self, random=False, verbose=False):
+        raise NotImplementedError()
         before = (self.param_array, -self.log_marginal_likelihood())
         if random:
             init = np.random.rand(*self.param_array.shape)*3
@@ -107,15 +112,25 @@ class Regression():
         m = Xn.shape[0]
 
         L = cholesky(K()+self.params['sgm']*np.identity(self.n), lower=True)
-
-        alpha = solve_triangular(L, self.y[:,0], lower=True) # (n,)
         V = solve_triangular(L, k(), lower=True) # (n, m)
 
+        alpha = solve_triangular(L, self.y[:,0], lower=True) # (n,)
         yn = np.dot(alpha, V) # (m,)
-        vn = (self.kernel(Xn)() - np.dot(V.T,V)
-              + self.params['sgm'] * np.identity(m)) # (m, m)
 
         return yn
+
+    def predict_var(self, Xn):
+
+        k = self.kernel(self.X, Xn)
+        K = self.kernel(self.X)
+        m = Xn.shape[0]
+
+        L = cholesky(K()+self.params['sgm']*np.identity(self.n), lower=True)
+        V = solve_triangular(L, k(), lower=True) # (n, m)
+        beta = solve_triangular(L, self.err**2, lower=True)
+        vn = np.dot(beta, V)
+
+        return vn
 
     def plot(self, range_=None, output=None):
         """
