@@ -27,9 +27,10 @@ class Regression():
         L = cholesky(Ky, lower=True)
         alpha = solve_triangular(L, self.y, lower=True)[:, 0]
 
-        return (- 0.5 * np.dot(alpha, alpha)
-                - np.sum(np.log(np.diagonal(L)))
-                - 0.5 * self.n * np.log(2 * np.pi))
+        t1 = - 0.5 * np.dot(alpha, alpha)
+        t2 = - np.sum(np.log(np.diagonal(L)))
+        t3 = - 0.5 * self.n * np.log(2 * np.pi)
+        return t1+t2+t3
 
     def grad_log_marginal_likelihood(self):
         Ky = self.K() + self.params['sgm'] * np.identity(self.n)
@@ -88,11 +89,11 @@ class Regression():
         V = solve_triangular(L, k(), lower=True)  # (n, m)
 
         yn = np.dot(alpha, V)  # (m,)
-        vn = (self.kernel(Xn)() - np.dot(V.T, V)
-              + self.params['sgm'] * np.identity(m))  # (m, m)
+        vn_t1 = self.kernel(Xn)() - np.dot(V.T, V)
+        vn_t2 = self.params['sgm'] * np.identity(m)  # (m, m)
 
         if variance:
-            return yn, vn
+            return yn, vn_t1+vn_t2
         else:
             return yn
 
