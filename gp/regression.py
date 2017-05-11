@@ -1,28 +1,9 @@
 import numpy as np
-from gaussian_process import kernel
+from . import kernel
 from scipy import matmul
 from scipy.linalg import cholesky, solve_triangular, solve, inv, det
 from scipy.optimize import minimize
 from matplotlib import pyplot as plt
-
-def data1(n=50, sgm=0.3):
-    np.random.seed(0)
-    X = np.random.rand(n,1) * 10
-    y = np.sin(X)[:,0] + np.random.randn(n)*sgm
-    return (X,y)
-
-def syn(n=50):
-    np.random.seed(0)
-    X = np.random.rand(n,1) * 10
-    y = np.cos(X[:,0]/6) + 0.3*np.cos(X[:,0]/3)*np.random.randn(n)
-    return (X,y)
-
-def data2(n=50):
-    np.random.seed(0)
-    X = np.random.rand(n,1) * 10
-    y = np.cos(X)[:,0]
-    return (X,y)
-
 
 class Regression():
     def __init__(self, k=kernel.Kernel(kernel.RBF, sgm=1., beta=1.), sgm=1.):
@@ -33,11 +14,7 @@ class Regression():
     def fit(self, X, y):
         assert X.ndim == 2
         self.X = X
-
-        assert y.ndim in [1,2]
-        if y.ndim == 1: self.y = y.reshape(-1,1)
-        else: self.y = y
-        assert self.y.shape[1] == 1
+        self.y = y.reshape(-1, 1)
 
         assert self.X.shape[0] == self.y.shape[0]
 
@@ -96,7 +73,7 @@ class Regression():
         self.kernel.param_array = arr[1:]
         self.K = self.kernel(self.X)
 
-    def predict(self,Xn):
+    def predict(self,Xn, variance=True):
         """
         Xn: (m, d)
         X: (n, d)
@@ -115,12 +92,15 @@ class Regression():
         vn = (self.kernel(Xn)() - np.dot(V.T,V)
               + self.params['sgm'] * np.identity(m)) # (m, m)
 
-        return yn
+        if variance:
+            return yn, vn
+        else:
+            return yn
 
     def plot(self, range_=None, output=None):
         """
-data = (X,y) : input and output array.
-range_ = (min, max) : range to draw.
+        data = (X,y) : input and output array.
+        range_ = (min, max) : range to draw.
         """
         if self.dim == 1:
             fig = plt.figure()
@@ -139,38 +119,3 @@ range_ = (min, max) : range to draw.
             return fig
         else:
             assert True, "Only 1 dimension is supported for input"
-
-
-def main():
-    X,y=data1(100,0.2)
-    model = Regression()
-    model.fit(X,y)
-    for i in range(10):
-        model.optimize(True)
-
-    model.plot((-1,11), "output.png")
-    plt.show()
-    print(model.grad_log_marginal_likelihood())
-    print(model.log_marginal_likelihood())
-    print(model.param_array)
-    print(model.kernel.params)
-
-#    x = np.linspace(0.002, 0.01, 10)
-#    y = np.zeros(10)
-#    yg = np.zeros(10)
-#    for i,xn in enumerate(x):
-#        param_array = model.param_array
-#        param_array[0] = xn
-#        model.param_array = param_array
-#        y[i]  = model.log_marginal_likelihood()
-#        yg[i] = model.grad_log_marginal_likelihood()[0]
-#
-#    plt.clf()
-#    plt.plot(x,y)
-#    plt.savefig('obj.png')
-#    plt.clf()
-#    plt.plot(x,yg)
-#    plt.savefig('grad.png')
-
-if __name__ == "__main__":
-    main()
