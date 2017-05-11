@@ -1,33 +1,38 @@
-try:
-    import gp
-except:
-    import sys, os
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
-from gp import Regression
 import numpy as np
 import matplotlib.pyplot as plt
 
+try:
+    from gp import Regression
+except:
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+    import gp
+
+
 def data1(n=50, sgm=0.3):
     np.random.seed(0)
-    X = np.random.rand(n, 1)*10
-    y = np.sin(X)[:, 0] + np.random.randn(n)*sgm
+    X = np.random.rand(n, 1) * 10
+    y = np.sin(X)[:, 0] + np.random.randn(n) * sgm
     return X, y
+
 
 def syn(n=50):
     np.random.seed(0)
-    X = np.random.rand(n, 1)*10
-    y = np.cos(X[:, 0]/6) + 0.3*np.cos(X[:, 0]/3)*np.random.randn(n)
+    X = np.random.rand(n, 1) * 10
+    y = np.cos(X[:, 0] / 6) + 0.3 * np.cos(X[:, 0] / 3) * np.random.randn(n)
     return X, y
+
 
 def data2(n=50):
     np.random.seed(0)
-    X = np.random.rand(n, 1)*10
+    X = np.random.rand(n, 1) * 10
     y = np.cos(X)[:, 0]
     return X, y
 
+
 def main():
-    X, y=data1(100, 0.2)
+    X, y = data1(100, 0.2)
     model = Regression()
     model.fit(X, y)
     for i in range(10):
@@ -56,6 +61,7 @@ def main():
 #    plt.clf()
 #    plt.plot(x,yg)
 #    plt.savefig('grad.png')
+
 
 if __name__ == "__main__":
     main()
