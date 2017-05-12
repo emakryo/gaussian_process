@@ -7,7 +7,7 @@ except:
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    import gp
+    from gp import Regression
 
 
 def data1(n=50, sgm=0.3):
@@ -43,7 +43,7 @@ def main():
     print(model.grad_log_marginal_likelihood())
     print(model.log_marginal_likelihood())
     print(model.param_array)
-    print(model.kernel.params)
+    print(model.k_params)
 
 #    x = np.linspace(0.002, 0.01, 10)
 #    y = np.zeros(10)

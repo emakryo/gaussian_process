@@ -21,7 +21,8 @@ class Kernel():
 
 
 class RBF():
-    def __init__(self, X1, X2=None, sgm=1, beta=1, param_X1=False, param_X2=False):
+    def __init__(self, X1, X2=None, sgm=1, beta=1,
+                 param_X1=False, param_X2=False):
         """
         k(x_i, x_j) = \sgm exp{ \beta (x_i - x_j)^T (x_i - x_j) }
         """
@@ -31,7 +32,8 @@ class RBF():
             self.X1 = X1.reshape(-1, 1)
         else:
             raise ValueError(
-                "The number of dimension of X1 higher than 2: X1.ndim=%d" % X1.ndim)
+                "The number of dimension of X1 higher than 2: X1.ndim=%d" %
+                X1.ndim)
 
         if X2 is None:
             self.X2 = None
@@ -41,7 +43,8 @@ class RBF():
             self.X2 = X2.reshape(-1, 1)
         else:
             raise ValueError(
-                "The number of dimension of X2 higher than 2: X2.ndim=%d" % X2.ndim)
+                "The number of dimension of X2 higher than 2: X2.ndim=%d" %
+                X2.ndim)
 
         assert X2 is None or X1.shape[1] == X2.shape[1],\
             ("The dimension of data does not match: X1.shape=%s, X2.shape=%s" %
@@ -74,7 +77,8 @@ class RBF():
         self.diff = X1 - X2
         self.norm2 = np.sum(self.diff**2, 2)
 
-        return self.params['sgm'] * np.exp(- 0.5 * self.params['beta'] * self.norm2)
+        bx = self.params['beta'] * self.norm2
+        return self.params['sgm'] * np.exp(- 0.5 * bx)
 
     def ___dK_dZ(self):
         """
@@ -113,9 +117,22 @@ class RBF():
     def dK_dtheta(self):
         return self.dK_dbeta(), self.dK_dsgm()
 
+    @property
+    def param_array(self):
+        return np.array([self.params['beta'], self.params['sgm']])
+
+    @param_array.setter
+    def param_array(self, arr):
+        self.params['beta'], self.params['sgm'] = arr
+
     @staticmethod
     def bounds():
         return [(1e-10, None), (1e-10, None)]
+
+    @staticmethod
+    def params(arr):
+        assert len(arr) == 2
+        return dict(beta=arr[0], sgm=arr[1])
 
 
 if __name__ == "__main__":

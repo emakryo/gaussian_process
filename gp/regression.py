@@ -6,10 +6,12 @@ from matplotlib import pyplot as plt
 
 
 class Regression():
-    def __init__(self, k=kernel.Kernel(kernel.RBF, sgm=1., beta=1.), sgm=1.):
+    def __init__(self, sgm=1., kern=kernel.RBF,
+                 k_params=dict(sgm=1., beta=1.)):
 
         self.params = {'sgm': sgm}
-        self.kernel = k
+        self.kernel = kern
+        self.k_params = k_params
 
     def fit(self, X, y):
         assert X.ndim == 2
@@ -20,10 +22,10 @@ class Regression():
 
         self.n, self.dim = self.X.shape
 
-        self.K = self.kernel(self.X)
+        self.K = self.kernel(self.X, **self.k_params)
 
     def log_marginal_likelihood(self):
-        Ky = self.K() + self.params['sgm'] * np.identity(self.n)
+        Ky = self.K() + self.sigma * np.identity(self.n)
         L = cholesky(Ky, lower=True)
         alpha = solve_triangular(L, self.y, lower=True)[:, 0]
 
@@ -33,7 +35,7 @@ class Regression():
         return t1+t2+t3
 
     def grad_log_marginal_likelihood(self):
-        Ky = self.K() + self.params['sgm'] * np.identity(self.n)
+        Ky = self.K() + self.sigma * np.identity(self.n)
         Ky_inv = inv(Ky)
         alpha = solve(Ky, self.y, sym_pos=True)
         A = alpha @ alpha.T - Ky_inv
@@ -54,7 +56,7 @@ class Regression():
                     -self.grad_log_marginal_likelihood())
 
         res = minimize(fun, init, method='L-BFGS-B', jac=True,
-                       bounds=[(1e-10, None)] + self.kernel.bounds,
+                       bounds=[(1e-10, None)] + self.kernel.bounds(),
                        options={'disp': verbose})
 
         if res.fun < before[1]:
@@ -64,13 +66,22 @@ class Regression():
 
     @property
     def param_array(self):
-        return np.concatenate(([self.params['sgm']], self.kernel.param_array))
+        return np.concatenate(([self.sigma],
+                               [self.k_params[k] for k in self.k_params]))
 
     @param_array.setter
     def param_array(self, arr):
         self.params['sgm'] = arr[0]
-        self.kernel.param_array = arr[1:]
-        self.K = self.kernel(self.X)
+        self.k_params = self.kernel.params(arr[1:])
+        self.K = self.kernel(self.X, **self.k_params)
+
+    @property
+    def sigma(self):
+        return self.params['sgm']
+
+    @sigma.setter
+    def sigma(self, x):
+        self.params['sgm'] = x
 
     def predict(self, Xn, variance=True):
         """
@@ -78,19 +89,18 @@ class Regression():
         X: (n, d)
         y: (n, 1)
         """
-        k = self.kernel(self.X, Xn)
-        K = self.kernel(self.X)
+        k = self.kernel(self.X, Xn, **self.k_params)
+        K = self.kernel(self.X, **self.k_params)
         m = Xn.shape[0]
 
-        L = cholesky(K() + self.params['sgm'] *
-                     np.identity(self.n), lower=True)
+        L = cholesky(K() + self.sigma * np.identity(self.n), lower=True)
 
         alpha = solve_triangular(L, self.y[:, 0], lower=True)  # (n,)
         V = solve_triangular(L, k(), lower=True)  # (n, m)
 
         yn = np.dot(alpha, V)  # (m,)
-        vn_t1 = self.kernel(Xn)() - np.dot(V.T, V)
-        vn_t2 = self.params['sgm'] * np.identity(m)  # (m, m)
+        vn_t1 = self.kernel(Xn, **self.k_params)() - np.dot(V.T, V)
+        vn_t2 = self.sigma * np.identity(m)  # (m, m)
 
         if variance:
             return yn, vn_t1+vn_t2
