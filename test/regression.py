@@ -2,12 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 try:
-    from gp import Regression
+    from gp import Regression, FITCRegression
 except:
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from gp import Regression
+    from gp import Regression, FITCRegression
 
 
 def data1(n=50, sgm=0.3):
@@ -32,18 +32,18 @@ def data2(n=50):
 
 
 def main():
-    X, y = data1(100, 0.2)
-    model = Regression()
-    model.fit(X, y)
-    for i in range(10):
-        model.optimize(True)
+    X, y = data1(10000, 0.2)
+    model = FITCRegression(X, y, 10)
+    # model.fit(X, y)
+    # for i in range(10):
+    #     model.optimize(True)
 
-    model.plot((-1, 11), "output.png")
+    model.plot("output.png")
     plt.show()
-    print(model.grad_log_marginal_likelihood())
-    print(model.log_marginal_likelihood())
-    print(model.param_array)
-    print(model.k_params)
+    # print(model.grad_log_marginal_likelihood())
+    # print(model.log_marginal_likelihood())
+    # print(model.param_array)
+    # print(model.k_params)
 
 #    x = np.linspace(0.002, 0.01, 10)
 #    y = np.zeros(10)
