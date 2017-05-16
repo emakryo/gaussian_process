@@ -17,10 +17,7 @@ class FITCRegression():
         assert X.ndim == 2, \
             "The number of dimension of X must be 2: X.ndim=%d" % X.ndim
         self.X = X
-        assert y.ndim in [1, 2], \
-            "The number of dimension of y is higher than 2: y.ndim=%d" % y.ndim
-
-        self.y = np.array(y).reshape(-1, 1)
+        self.y = np.array(y).reshape(-1)
 
         assert X.shape[0] == y.shape[0], "data size does not match"
 
@@ -46,10 +43,13 @@ class FITCRegression():
         Kpm = self.kernel(Xp, self.Z, **self.k_params)()
         Qpp = np.sum((Kpm@cholInvKmm)**2, 1)
         P = Kpm@Sigmasq
-        mean = P@Sigmasq.T@Kxm.T@(self.y.reshape(-1)/gamma)
+        mean = P@Sigmasq.T@Kxm.T@(self.y/gamma)
         var = Kpp-Qpp+np.sum(P**2, 1)
 
         return mean, var
+
+    def optimize(self):
+        ...
 
     def plot(self, output=None):
         assert self.dim == 1
@@ -59,7 +59,7 @@ class FITCRegression():
         mean, var = self.predict(Xp.reshape(-1, 1))
 
         fig = plt.figure()
-        plt.plot(self.X[:, 0], self.y[:, 0], "bx")
+        plt.plot(self.X[:, 0], self.y, "bx")
         mean = mean.reshape(-1)
         std = np.sqrt(var).reshape(-1)
         plt.plot(Xp, mean, "k-")
@@ -73,11 +73,47 @@ class FITCRegression():
 
         return fig
 
-    def log_marginal_likelihood_lower_bound(self):
-        return 0
+    def logMarginal(self):
+        K = self.kernel(self.X, **self.k_params, diag=True)()
+        Kxm = self.kernel(self.X, self.Z, **self.k_params)()
+        Kmm = self.kernel(self.Z, **self.k_params)()
+        cholKmm = cholesky(Kmm)
+        cholInvKmm = cholInv(Kmm+1e-6*np.eye(self.m))
+        Q = np.sum((Kxm@cholInvKmm)**2, 1)
+        gamma = K-Q+self.sigma
+        G = (Kxm/np.sqrt(gamma).reshape(-1, 1))@cholKmm
+        M = cholInv(Kmm+(Kxm.T/gamma)@Kxm)
+        t1 = -0.5*np.sum(np.log(gamma))
+        t2 = -0.5*np.log(np.linalg.det(np.eye(self.m)+G.T@G))
+        t3 = -0.5*(self.y.T/gamma)@self.y
+        t4 = 0.5*np.sum(((self.y.T/gamma)@Kxm@M)**2)
+        t5 = -0.5*self.n*np.log(2*np.pi)
+        return t1+t2+t3+t4+t5
 
-    def grad_log_marginal_likelihood_lower_bound(self):
-        return np.zeros(len(self.param_array))
+    def dlogMdSigma(self):
+        K = self.kernel(self.X, **self.k_params, diag=True)()
+        Kxm = self.kernel(self.X, self.Z, **self.k_params)()
+        Kmm = self.kernel(self.Z, **self.k_params)()
+        cholInvKmm = cholInv(Kmm+1e-6*np.eye(self.m))
+        Q = np.sum((Kxm@cholInvKmm)**2, 1)
+        Lam = K-Q+self.sigma
+        cholInvB = cholInv(Kmm + (Kxm.T/Lam)@Kxm) # B = Kmm + Kxm.T \Lambda^-1 Kxm
+        C = Kxm/Lam@cholInvB # C = \Lambda^-1 Kxm chol(B^-1)
+        trAInv = np.sum(1/Lam) - np.sum(C**2) # A = Q+\Lambda
+        AInvy = self.y/Lam - C@(C.T@self.y)
+        return -0.5*trAInv + 0.5*np.sum(AInvy**2)
+
+    def dlogMdk_params(self):
+        K = self.kernel(self.X, **self.k_params, diag=True)()
+        Kxm = self.kernel(self.X, self.Z, **self.k_params)()
+        Kmm = self.kernel(self.Z, **self.k_params)()
+        cholInvKmm = cholInv(Kmm+1e-6*np.eye(self.m))
+        Q = np.sum((Kxm@cholInvKmm)**2, 1)
+        Lam = K-Q+self.sigma
+        cholInvB = cholInv(Kmm + (Kxm.T/Lam)@Kxm) # B = Kmm + Kxm.T \Lambda^-1 Kxm
+        C = Kxm/Lam@cholInvB # C = \Lambda^-1 Kxm chol(B^-1)
+        trAInv = np.sum(1/Lam) - np.sum(C**2) # A = Q+\Lambda
+        AInvy = self.y/Lam - C@(C.T@self.y)
 
     @property
     def sigma(self):

@@ -10,27 +10,6 @@ except:
     from gp import Regression, FITCRegression
 
 
-def data1(n=50, sgm=0.3):
-    np.random.seed(0)
-    X = np.random.rand(n, 1) * 10
-    y = np.sin(X)[:, 0] + np.random.randn(n) * sgm
-    return X, y
-
-
-def syn(n=50):
-    np.random.seed(0)
-    X = np.random.rand(n, 1) * 10
-    y = np.cos(X[:, 0] / 6) + 0.3 * np.cos(X[:, 0] / 3) * np.random.randn(n)
-    return X, y
-
-
-def data2(n=50):
-    np.random.seed(0)
-    X = np.random.rand(n, 1) * 10
-    y = np.cos(X)[:, 0]
-    return X, y
-
-
 def main():
     X, y = data1(10000, 0.2)
     model = FITCRegression(X, y, 10)
@@ -39,6 +18,7 @@ def main():
     #     model.optimize(True)
 
     model.plot("output.png")
+    print(model.logMarginal())
     plt.show()
     # print(model.grad_log_marginal_likelihood())
     # print(model.log_marginal_likelihood())

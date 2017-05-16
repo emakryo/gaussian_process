@@ -30,7 +30,7 @@ class RBF():
         if self.diag:
             return self.sigma * np.ones(min(self.n1, self.n2))
         else:
-            return self.sigma*np.exp(-0.5*self.beta*self._diff)
+            return self.sigma * np.exp(-0.5*self.beta*self._diff)
 
     def ___K(self):
 
