@@ -11,9 +11,15 @@ def cholInv(A):
 
 class FITCRegression():
 
-    def __init__(self, X, y, m, sgm=0.1, kern=kernel.RBF,
+    def __init__(self, m, sgm=0.1, kern=kernel.RBF,
                  k_params=dict(sgm=1., beta=1.)):
 
+        self.m = m
+        self.params = {'sgm': sgm}
+        self.kernel = kern
+        self.k_params = k_params
+
+    def fit(self, X, y):
         assert X.ndim == 2, \
             "The number of dimension of X must be 2: X.ndim=%d" % X.ndim
         self.X = X
@@ -22,11 +28,7 @@ class FITCRegression():
         assert X.shape[0] == y.shape[0], "data size does not match"
 
         self.n, self.dim = X.shape
-        self.m = m
-        self.Z = X[np.random.permutation(self.n)[:m]]
-        self.params = {'sgm': sgm}
-        self.kernel = kern
-        self.k_params = k_params
+        self.Z = X[np.random.permutation(self.n)[:self.m]]
 
     def predict(self, Xp):
         assert Xp.shape[1] == self.dim

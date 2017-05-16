@@ -107,15 +107,14 @@ class Regression():
         else:
             return yn
 
-    def plot(self, range_=None, output=None):
+    def plot(self, output=None):
         """
         data = (X,y) : input and output array.
         range_ = (min, max) : range to draw.
         """
         if self.dim == 1:
             fig = plt.figure()
-            if range_ is None:
-                range_ = (self.X[:, 0].min(), self.X[:, 0].max())
+            range_ = (self.X[:, 0].min(), self.X[:, 0].max())
 
             plt.xlim()
             plt.plot(self.X[:, 0], self.y[:, 0], "bx")

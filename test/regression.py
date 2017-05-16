@@ -1,27 +1,26 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import data
 
 try:
-    from gp import Regression, FITCRegression
+    from gp import Regression
 except:
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from gp import Regression, FITCRegression
+    from gp import Regression
 
 
 def main():
-    X, y = data1(10000, 0.2)
-    model = FITCRegression(X, y, 10)
-    # model.fit(X, y)
+    X, y = data.data1(100, 0.2)
+    model = Regression()
+    model.fit(X, y)
     # for i in range(10):
     #     model.optimize(True)
 
     model.plot("output.png")
-    print(model.logMarginal())
+    print(model.log_marginal_likelihood())
     plt.show()
     # print(model.grad_log_marginal_likelihood())
-    # print(model.log_marginal_likelihood())
     # print(model.param_array)
     # print(model.k_params)
 
