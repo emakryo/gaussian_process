@@ -76,7 +76,7 @@ class EPClassification():
 
     def predict(self, Xs):
         pi = self.decision_function(Xs)
-        return pi > 0.5
+        return np.sign(pi-0.5)
 
     def log_ml(self):
         return sum(self.log_ml_terms())

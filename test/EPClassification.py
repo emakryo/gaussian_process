@@ -17,19 +17,21 @@ except:
 def test0():
     """test with synthesis twin moon data"""
     X, y = data.twin(200)
-    model = EPClassification()
+    model = EPClassification(sigma=1.0, beta=10)
     model.fit(X, y)
 
     Xmesh = np.meshgrid(np.linspace(-2, 2), np.linspace(-1.5, 1.5))
     Xtest = np.stack(Xmesh, 2).reshape(-1, 2)
 
     print(model.log_ml())
-    model.empiricalBayes()
+    #model.empiricalBayes()
     print(model.log_ml())
     decfun = model.decision_function(Xtest)
+    pred = model.predict(Xtest)
 
     fig, ax = plt.subplots()
-    cs = ax.contourf(Xmesh[0], Xmesh[1], decfun.reshape(*Xmesh[0].shape))
+    cs = ax.contourf(Xmesh[0], Xmesh[1], pred.reshape(*Xmesh[0].shape))
+    #cs = ax.contourf(Xmesh[0], Xmesh[1], decfun.reshape(*Xmesh[0].shape))
     fig.colorbar(cs)
     ax.plot(X[y == 1, 0], X[y == 1, 1], 'bo',
             X[y == -1, 0], X[y == -1, 1], 'ro')
