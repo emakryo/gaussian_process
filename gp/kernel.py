@@ -2,10 +2,11 @@ import numpy as np
 
 
 class RBF():
+    """
+    k(x_i, x_j) = \Sigma exp{ \beta (x_i - x_j)^T (x_i - x_j) }
+    """
+
     def __init__(self, X1, X2=None, sigma=1, beta=1, diag=False):
-        """
-        k(x_i, x_j) = \Sigma exp{ \beta (x_i - x_j)^T (x_i - x_j) }
-        """
         assert X1.ndim == 2
         self.X1 = X1
         if X2 is None:
@@ -29,34 +30,6 @@ class RBF():
 
     def __call__(self):
         return self._K
-
-    def ___dK_dZ(self):
-        """
-        __dK_dZ[i,j,d] = \frac{\patial k(z_i, z_j)}{\partial z_{i,d}}
-        """
-        return self.__K[:, :, np.newaxis] * self.params['beta'] * self.diff / 2
-
-    def dK_dZi(self, ix):
-        i, j = self.__K.shape
-        d = np.zeros((i, j, self.dim))
-        if self.X2 is not None:
-            d[ix, :, :] = self.__dK_dZ[ix]
-        else:
-            d[ix, :, :] = self.__dK_dZ[ix]
-            d[:, ix, :] = -self.__dK_dZ[ix]
-
-        return d
-
-    def dK_dZj(self, jx):
-        i, j = self.__K.shape
-        d = np.zeros((i, j, self.dim))
-        if self.X2 is not None:
-            d[:, jx, :] = -self.__dK_dZ[jx]
-        else:
-            d[jx, :, :] = self.__dK_dZ[jx]
-            d[:, jx, :] = -self.__dK_dZ[jx]
-
-        return d
 
     def dbeta(self, diag=False):
         if self.diag:
@@ -99,7 +72,7 @@ class RBF():
 
     @staticmethod
     def bounds():
-        return [(1e-10, None), (1e-10, None)]
+        return [(1e-5, None), (1e-5, None)]
 
     @staticmethod
     def param_dict(arr):
@@ -109,6 +82,27 @@ class RBF():
     @staticmethod
     def param_array(dic):
         return np.array([dic['beta'], dic['sigma']])
+
+class eRBF(RBF):
+    def __init__(self, X1, X2=None, sigma=1, beta=1):
+        assert X1.ndim == 2
+        self.X1 = X1
+        if X2 is None:
+            self.X2 = X1
+        else:
+            assert X2.ndim == 2
+            self.X2 = X2
+
+        self.n1, self.dim1 = self.X1.shape
+        self.n2, self.dim2 = self.X2.shape
+        self.params = {'sigma': sigma, 'beta': beta}
+        self.dim = min(self.dim1, self.dim2)
+        X1sq = np.sum(self.X1[:, :self.dim]**2, 1).reshape(-1, 1)
+        X2sq = np.sum(self.X2[:, :self.dim]**2, 1).reshape(-1, 1)
+        self._diff = X1sq + X2sq.T - 2*self.X1[:, :self.dim]@self.X2[:, :self.dim].T
+        self._K = self.sigma * np.exp(-0.5*self.beta*self._diff)
+        self.diag = False
+
 
 class ARD():
     def __init__(self, X1, X2=None, ls=1., sigma=1., diag=False):

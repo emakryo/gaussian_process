@@ -39,7 +39,7 @@ def test0():
     plt.savefig('output.png')
 
 def test1():
-    X, y = data.twin(400)
+    X, y = data.australian()
 
     result = []
     for sigma, beta in [(s, b) for s in 2**np.arange(-5.0, 5.0)
