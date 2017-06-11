@@ -2,8 +2,7 @@ import numpy as np
 
 
 class RBF():
-    def __init__(self, X1, X2=None, sigma=1, beta=1,
-                 param_X1=False, param_X2=False, diag=False):
+    def __init__(self, X1, X2=None, sigma=1, beta=1, diag=False):
         """
         k(x_i, x_j) = \Sigma exp{ \beta (x_i - x_j)^T (x_i - x_j) }
         """
@@ -12,11 +11,11 @@ class RBF():
         if X2 is None:
             self.X2 = X1
         else:
+            assert X2.ndim == 2
             self.X2 = X2
 
-        self.X1 = X1
-        self.n1, self.dim = X1.shape
-        self.n2 = self.X2.shape[0]
+        self.n1, self.dim1 = self.X1.shape
+        self.n2, self.dim2 = self.X2.shape
         self.params = {'sigma': sigma, 'beta': beta}
         if not diag:
             X1sq = np.sum(self.X1**2, 1).reshape(-1, 1)

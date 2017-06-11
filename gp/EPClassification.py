@@ -5,9 +5,9 @@ from . import kernel
 
 
 class EPClassification():
-    def __init__(self, kernel=kernel.RBF, k_params={'sigma': 1, 'beta': 10}):
+    def __init__(self, kernel=kernel.RBF, sigma=1, beta=1):
         self.kernel = kernel
-        self.k_params = k_params
+        self.k_params = {'sigma': sigma, 'beta': beta}
 
     def fit(self, X, y):
         self.X = X

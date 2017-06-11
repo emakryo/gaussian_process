@@ -1,7 +1,9 @@
 import numpy as np
+import pandas as pd
 import data
 import matplotlib.pyplot as plt
-from sklearn.metrics import classification_report, roc_auc_score
+from sklearn.metrics import accuracy_score
+from sklearn.svm import SVC
 
 try:
     from gp import EPClassification
@@ -35,6 +37,35 @@ def test0():
     plt.savefig('output.png')
 
 def test1():
+    X, y = data.twin(400)
+
+    result = []
+    for sigma, beta in [(s, b) for s in 2**np.arange(-5.0, 5.0)
+                        for b in 2**np.arange(-5.0, 5.0)]:
+        accuracy = []
+        for _ in range(5):
+            idx = np.random.permutation(len(y))
+            Xtr = X[idx[:300]]
+            ytr = y[idx[:300]]
+            Xte = X[idx[300:]]
+            yte = y[idx[300:]]
+            model = EPClassification(sigma=sigma, beta=beta)
+            model.fit(Xtr, ytr)
+            #model.empiricalBayes()
+            
+            train_acc = accuracy_score(ytr, model.predict(Xtr))
+            ypr = model.predict(Xte)
+            test_acc = accuracy_score(yte, ypr)
+            accuracy.append(test_acc)
+
+            result.append({'sigma':sigma, 'beta':beta, 'test_accuracy':test_acc,
+                'train_accuracy':train_acc})
+
+        print(sigma, beta, np.mean(accuracy), np.std(accuracy))
+
+    pd.DataFrame(result).to_csv('result')
+
+def test2():
     X, y = data.australian()
 
     accuracy = []
@@ -44,15 +75,13 @@ def test1():
         ytr = y[idx[:300]]
         Xte = X[idx[300:]]
         yte = y[idx[300:]]
-        model = EPClassification()
+        model = SVC()
         model.fit(Xtr, ytr)
-        model.empiricalBayes()
         
         ypr = model.predict(Xte)
         accuracy.append(accuracy_score(yte, ypr))
 
     print(np.mean(accuracy), np.std(accuracy))
-
 
 def debug():
     X, y = data.twin(50)
