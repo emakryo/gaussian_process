@@ -17,24 +17,23 @@ except:
 
 
 def test0():
-    assert False
     """test with synthesis twin moon data"""
     X, y = data.twin(200)
-    model = EPClassification(sigma=1.0, beta=10)
-    model.fit(X, y)
+    model = privEPClassification()
+    model.fit(X[:,1:], y, X)
 
     Xmesh = np.meshgrid(np.linspace(-2, 2), np.linspace(-1.5, 1.5))
     Xtest = np.stack(Xmesh, 2).reshape(-1, 2)
 
     print(model.log_ml())
     #model.empiricalBayes()
-    print(model.log_ml())
-    decfun = model.decision_function(Xtest)
-    pred = model.predict(Xtest)
+    #print(model.log_ml())
+    decfun = model.decision_function(Xtest[:,1:])
+    pred = model.predict(Xtest[:,1:])
 
     fig, ax = plt.subplots()
-    cs = ax.contourf(Xmesh[0], Xmesh[1], pred.reshape(*Xmesh[0].shape))
-    #cs = ax.contourf(Xmesh[0], Xmesh[1], decfun.reshape(*Xmesh[0].shape))
+    #cs = ax.contourf(Xmesh[0], Xmesh[1], pred.reshape(*Xmesh[0].shape))
+    cs = ax.contourf(Xmesh[0], Xmesh[1], decfun.reshape(*Xmesh[0].shape))
     fig.colorbar(cs)
     ax.plot(X[y == 1, 0], X[y == 1, 1], 'bo',
             X[y == -1, 0], X[y == -1, 1], 'ro')
@@ -45,8 +44,12 @@ def test1():
     X, y = data.australian()
 
     result = []
-    for sigma, beta in [(s, b) for s in 2**np.arange(-5.0, 5.0)
-                        for b in 2**np.arange(-5.0, 5.0)]:
+    for sigmax, betax, sigmaz, betaz, alpha in [(sx, bx, sz, bz, a)
+            for sx in 2**np.arange(-5.0, 5.0, 2.0)
+            for bx in 2**np.arange(-5.0, 5.0, 2.0)
+            for sz in 2**np.arange(-5.0, 5.0, 2.0)
+            for bz in 2**np.arange(-5.0, 5.0, 2.0)
+            for a in np.arange(0.2, 1.2, 0.2)]:
         for xdim in range(2, X.shape[1]):
             priv_accuracy = []
             normal_accuracy = []
@@ -57,8 +60,9 @@ def test1():
                 Xte = X[idx[300:]]
                 yte = y[idx[300:]]
 
-                model = privEPClassification(sigma=sigma, beta=beta)
-                model.fit(Xtr, ytr, Xtr[:,:xdim])
+                model = privEPClassification(sigmax=sigmax, betax=betax,
+                        sigmaz=sigmaz, betaz=betaz, alpha=alpha)
+                model.fit(Xtr[:, :xdim], ytr, Xtr)
                 #model.empiricalBayes()
                 
                 ypr = model.predict(Xtr[:,:xdim])
@@ -67,23 +71,10 @@ def test1():
                 test_acc = accuracy_score(yte, ypr)
                 priv_accuracy.append(test_acc)
 
-                result.append({'sigma':sigma, 'beta':beta, 'xdim': xdim,
-                    'privilege': True, 'test_accuracy':test_acc,
+                result.append({'sigmax':sigmax, 'betax':betax, 'xdim':xdim,
+                    'sigmaz':sigmaz, 'betaz':betaz, 'alpha':alpha,
+                    'test_accuracy':test_acc,
                     'train_accuracy':train_acc})
-
-                model = EPClassification(sigma=sigma, beta=beta)
-                model.fit(Xtr[:,:xdim], ytr)
-
-                train_acc = accuracy_score(ytr, model.predict(Xtr[:, :xdim]))
-                ypr = model.predict(Xte[:,:xdim])
-                test_acc = accuracy_score(yte, ypr)
-                normal_accuracy.append(test_acc)
-
-                result.append({'sigma':sigma, 'beta':beta, 'xdim': xdim,
-                    'privilege': False, 'test_accuracy':test_acc,
-                    'train_accuracy':train_acc})
-
-            print(sigma, beta, np.mean(priv_accuracy), np.mean(normal_accuracy))
 
     pd.DataFrame(result).to_csv('priv_result')
 
@@ -125,11 +116,12 @@ def debug0():
     np.save("grad_marginal", quiver)
 
 def debug():
-    from gp.kernel import eRBF
-    X = np.random.rand(100, 5)
-    K1 = eRBF(X, X)()
-    K12 = eRBF(X, X[:,:2])()
-    K2 = eRBF(X[:, :2], X[:, :2])()
+    from gp.kernel import privRBF
+    X = np.random.rand(500, 1)
+    Z = np.random.rand(500, 2)
+    K1 = privRBF((X, Z), (X, Z))()
+    K12 = privRBF((X, Z), (X, None), Zsample=Z)()
+    K2 = privRBF((X, None), (X, None), Zsample=Z)()
     K = np.concatenate([
         np.concatenate([K1, K12], axis=1),
         np.concatenate([K12.T, K2], axis=1)])

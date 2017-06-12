@@ -83,18 +83,42 @@ class RBF():
     def param_array(dic):
         return np.array([dic['beta'], dic['sigma']])
 
-class eRBF(RBF):
-    def __init__(self, X1, X2=None, sigma=1, beta=1):
-        if X2 is None:
-            X2 = X1
+class privRBF():
+    def __init__(self, XZ1, XZ2=None, Zsample=None, alpha=0.5,
+            sigmax=1, betax=1, sigmaz=1, betaz=1):
+        """
+        X1, X2: input
+        Z1, Z2: privileged input
+        """
 
-        if X2.shape[1] < X1.shape[1]:
-            Xtmp = np.zeros((X2.shape[0], X1.shape[1]))
-            Xtmp[:, :X2.shape[1]] = X2
-            Xtmp[:, X2.shape[1]:] = np.mean(X1[:,X2.shape[1]:], 0)
-            X2 = Xtmp
-        super().__init__(X1, X2, sigma=sigma, beta=beta)
+        if XZ2 is None:
+            XZ2 = XZ1
 
+        self.X1 = XZ1[0]
+        self.Z1 = XZ1[1]
+        self.X2 = XZ2[0]
+        self.Z2 = XZ2[1]
+
+        kx = RBF(self.X1, self.X2, sigmax, betax)
+        if self.Z1 is None and self.Z2 is None:
+            kz = RBF(Zsample, Zsample, sigmaz, betaz)
+        elif self.Z2 is None:
+            kz = RBF(self.Z1, Zsample, sigmaz, betaz)
+        else:
+            kz = RBF(self.Z1, self.Z2, sigmaz, betaz)
+
+        self.kx = kx
+        self.kz = kz
+        self.alpha = alpha
+
+    def __call__(self):
+        alpha = self.alpha
+        if self.Z1 is None and self.Z2 is None:
+            return alpha*self.kx() + (1-alpha)*np.mean(self.kz())
+        elif self.Z2 is None:
+            return alpha*self.kx() + (1-alpha)*np.mean(self.kz(), axis=1).reshape(-1, 1)
+        else:
+            return alpha*self.kx() + (1-alpha)*self.kz()
 
 class ARD():
     def __init__(self, X1, X2=None, ls=1., sigma=1., diag=False):

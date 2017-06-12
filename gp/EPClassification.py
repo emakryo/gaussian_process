@@ -11,11 +11,13 @@ class EPClassification():
 
     def fit(self, X, y):
         self.X = X
-        self.n, self.dim = self.X.shape
+        self.n = self.X.shape[0]
         assert self.n == len(y)
         self.y = y
+        self._fit()
 
-        K = self.kernel(X, **self.k_params)()
+    def _fit(self):
+        K = self.kernel(self.X, **self.k_params)()
         nuTilde = np.zeros(self.n)
         tauTilde = np.zeros(self.n)
         Sigma = np.copy(K)
@@ -28,9 +30,9 @@ class EPClassification():
                 tauBar = 1.0/Sigma[i, i] - tauTilde[i]
                 nuBar = mu[i]/Sigma[i, i] - nuTilde[i]
                 dom = tauBar**2+tauBar
-                z = y[i] * nuBar / np.sqrt(dom)
+                z = self.y[i] * nuBar / np.sqrt(dom)
                 ratio = np.exp(norm.logpdf(z) - norm.logcdf(z))
-                muHat = nuBar / tauBar + y[i]*ratio/np.sqrt(dom)
+                muHat = nuBar / tauBar + self.y[i]*ratio/np.sqrt(dom)
                 sigmaHat = 1/tauBar - ratio / dom * (z+ratio)
                 dTauTilde = 1/sigmaHat - tauBar - tauTilde[i]
                 tauTildeNext = tauTilde[i] + dTauTilde
@@ -64,9 +66,12 @@ class EPClassification():
 
     def posterior(self, Xs):
         Ks = self.kernel(self.X, Xs, **self.k_params)()
+        Kss = np.diag(self.kernel(Xs, Xs, **self.k_params)())
+        return self._posterior(Ks, Kss)
+
+    def _posterior(self, Ks, Kss):
         mean = Ks.T @ (self.nuTilde - self.z)
         v = np.linalg.solve(self.L, self.Ssq*Ks)
-        Kss = np.diag(self.kernel(Xs, Xs, **self.k_params)())
         var = Kss - np.sum(v**2, 0)
         return mean, var
 
