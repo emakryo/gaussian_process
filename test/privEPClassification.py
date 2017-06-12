@@ -47,8 +47,9 @@ def test1():
     result = []
     for sigma, beta in [(s, b) for s in 2**np.arange(-5.0, 5.0)
                         for b in 2**np.arange(-5.0, 5.0)]:
-        accuracy = []
         for xdim in range(2, X.shape[1]):
+            priv_accuracy = []
+            normal_accuracy = []
             for _ in range(5):
                 idx = np.random.permutation(len(y))
                 Xtr = X[idx[:300]]
@@ -64,6 +65,7 @@ def test1():
                 train_acc = accuracy_score(ytr, ypr)
                 ypr = model.predict(Xte[:,:xdim])
                 test_acc = accuracy_score(yte, ypr)
+                priv_accuracy.append(test_acc)
 
                 result.append({'sigma':sigma, 'beta':beta, 'xdim': xdim,
                     'privilege': True, 'test_accuracy':test_acc,
@@ -75,12 +77,13 @@ def test1():
                 train_acc = accuracy_score(ytr, model.predict(Xtr[:, :xdim]))
                 ypr = model.predict(Xte[:,:xdim])
                 test_acc = accuracy_score(yte, ypr)
+                normal_accuracy.append(test_acc)
 
                 result.append({'sigma':sigma, 'beta':beta, 'xdim': xdim,
                     'privilege': False, 'test_accuracy':test_acc,
                     'train_accuracy':train_acc})
 
-            print(sigma, beta, np.mean(accuracy), np.std(accuracy))
+            print(sigma, beta, np.mean(priv_accuracy), np.mean(normal_accuracy))
 
     pd.DataFrame(result).to_csv('priv_result')
 
