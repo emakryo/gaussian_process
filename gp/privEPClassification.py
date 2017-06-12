@@ -6,11 +6,9 @@ from .EPClassification import EPClassification
 
 
 class privEPClassification(EPClassification):
-    def __init__(self, kernel=kernel.PrivAddRBF,
-            sigmax=1, betax=1, sigmaz=1, betaz=1, alpha=0.5):
+    def __init__(self, kernel=kernel.PrivAddRBF, **k_params):
         self.kernel = kernel
-        self.k_params = {'sigmax': sigmax, 'betax': betax,
-                'sigmaz': sigmaz, 'betaz': betaz, 'alpha': alpha}
+        self.k_params = k_params
 
     def fit(self, X, y, Z):
         """

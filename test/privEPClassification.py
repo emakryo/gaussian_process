@@ -6,13 +6,13 @@ from sklearn.metrics import accuracy_score
 from sklearn.svm import SVC
 
 try:
-    from gp import privEPClassification
+    from gp import privEPClassification, kernel
     from gp import EPClassification
 except:
     import sys
     import os
     sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-    from gp import privEPClassification
+    from gp import privEPClassification, kernel
     from gp import EPClassification
 
 
@@ -44,15 +44,13 @@ def test1():
     X, y = data.australian()
 
     result = []
-    for sigmax, betax, sigmaz, betaz, alpha in [(sx, bx, sz, bz, a)
+    for sigmax, betax, sigmaz, betaz in [(sx, bx, sz, bz)
             for sx in 2**np.arange(-5.0, 5.0, 2.0)
             for bx in 2**np.arange(-5.0, 5.0, 2.0)
             for sz in 2**np.arange(-5.0, 5.0, 2.0)
-            for bz in 2**np.arange(-5.0, 5.0, 2.0)
-            for a in np.arange(0.2, 1.2, 0.2)]:
+            for bz in 2**np.arange(-5.0, 5.0, 2.0)]:
         for xdim in range(2, X.shape[1]):
             priv_accuracy = []
-            normal_accuracy = []
             for _ in range(5):
                 idx = np.random.permutation(len(y))
                 Xtr = X[idx[:300]]
@@ -60,8 +58,9 @@ def test1():
                 Xte = X[idx[300:]]
                 yte = y[idx[300:]]
 
-                model = privEPClassification(sigmax=sigmax, betax=betax,
-                        sigmaz=sigmaz, betaz=betaz, alpha=alpha)
+                model = privEPClassification(kernel=kernel.PrivMultRBF,
+                        sigmax=sigmax, betax=betax,
+                        sigmaz=sigmaz, betaz=betaz)
                 model.fit(Xtr[:, :xdim], ytr, Xtr)
                 #model.empiricalBayes()
                 
@@ -72,11 +71,11 @@ def test1():
                 priv_accuracy.append(test_acc)
 
                 result.append({'sigmax':sigmax, 'betax':betax, 'xdim':xdim,
-                    'sigmaz':sigmaz, 'betaz':betaz, 'alpha':alpha,
+                    'sigmaz':sigmaz, 'betaz':betaz,
                     'test_accuracy':test_acc,
                     'train_accuracy':train_acc})
 
-    pd.DataFrame(result).to_csv('priv_result')
+    pd.DataFrame(result).to_csv('mult_priv_result')
 
 def test2():
     assert False

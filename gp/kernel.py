@@ -121,7 +121,7 @@ class PrivAddRBF():
             return alpha*self.kx() + (1-alpha)*self.kz()
 
 class PrivMultRBF():
-    def __init__(self, XZ1, XZ2=None, Zsample=None, alpha=0.5,
+    def __init__(self, XZ1, XZ2=None, Zsample=None,
             sigmax=1, betax=1, sigmaz=1, betaz=1):
         """
         X1, X2: input
@@ -146,10 +146,8 @@ class PrivMultRBF():
 
         self.kx = kx
         self.kz = kz
-        self.alpha = alpha
 
     def __call__(self):
-        alpha = self.alpha
         if self.Z1 is None and self.Z2 is None:
             return self.kx()*np.mean(self.kz())
         elif self.Z2 is None:
