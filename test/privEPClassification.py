@@ -116,12 +116,12 @@ def debug0():
     np.save("grad_marginal", quiver)
 
 def debug():
-    from gp.kernel import privRBF
-    X = np.random.rand(500, 1)
-    Z = np.random.rand(500, 2)
-    K1 = privRBF((X, Z), (X, Z))()
-    K12 = privRBF((X, Z), (X, None), Zsample=Z)()
-    K2 = privRBF((X, None), (X, None), Zsample=Z)()
+    from gp.kernel import PrivMultRBF
+    X = np.random.rand(10, 3)
+    Z = np.random.rand(10, 10)
+    K1 = PrivMultRBF((X, Z), (X, Z))()
+    K12 = PrivMultRBF((X, Z), (X, None), Zsample=Z)()
+    K2 = PrivMultRBF((X, None), (X, None), Zsample=Z)()
     K = np.concatenate([
         np.concatenate([K1, K12], axis=1),
         np.concatenate([K12.T, K2], axis=1)])

@@ -6,7 +6,7 @@ from .EPClassification import EPClassification
 
 
 class privEPClassification(EPClassification):
-    def __init__(self, kernel=kernel.privRBF,
+    def __init__(self, kernel=kernel.PrivAddRBF,
             sigmax=1, betax=1, sigmaz=1, betaz=1, alpha=0.5):
         self.kernel = kernel
         self.k_params = {'sigmax': sigmax, 'betax': betax,
