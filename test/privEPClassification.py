@@ -75,7 +75,7 @@ def test1():
 
     for sigma, beta in [(s, b)
             for s in 2**np.arange(-5.0, 5.0, 2.0)
-            for b in 2**np.arange(-5.0, 5.0, 2.0)]
+            for b in 2**np.arange(-5.0, 5.0, 2.0)]:
         for xdim in range(2, X.shape[1]):
             for _ in range(5):
                 idx = np.random.permutation(len(y))
@@ -135,12 +135,12 @@ def debug0():
     np.save("grad_marginal", quiver)
 
 def debug():
-    from gp.kernel import privRBF
-    X = np.random.rand(500, 1)
-    Z = np.random.rand(500, 2)
-    K1 = privRBF((X, Z), (X, Z))()
-    K12 = privRBF((X, Z), (X, None), Zsample=Z)()
-    K2 = privRBF((X, None), (X, None), Zsample=Z)()
+    from gp.kernel import PrivMultRBF
+    X = np.random.rand(500, 3)
+    Z = np.random.rand(500, 10)
+    K1 = PrivMultRBF((X, Z), (X, Z))()
+    K12 = PrivMultRBF((X, Z), (X[:300], None), Zsample=Z)()
+    K2 = PrivMultRBF((X[:300], None), (X[:300], None), Zsample=Z)()
     K = np.concatenate([
         np.concatenate([K1, K12], axis=1),
         np.concatenate([K12.T, K2], axis=1)])
@@ -148,7 +148,7 @@ def debug():
     print(np.linalg.eigvals(K))
 
 if __name__ == "__main__":
-    test0()
+    debug()
 else:
     X, y = data.twin(10)
     model = EPClassification(X, y)
