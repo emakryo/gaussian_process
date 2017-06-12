@@ -85,23 +85,15 @@ class RBF():
 
 class eRBF(RBF):
     def __init__(self, X1, X2=None, sigma=1, beta=1):
-        assert X1.ndim == 2
-        self.X1 = X1
         if X2 is None:
-            self.X2 = X1
-        else:
-            assert X2.ndim == 2
-            self.X2 = X2
+            X2 = X1
 
-        self.n1, self.dim1 = self.X1.shape
-        self.n2, self.dim2 = self.X2.shape
-        self.params = {'sigma': sigma, 'beta': beta}
-        self.dim = min(self.dim1, self.dim2)
-        X1sq = np.sum(self.X1[:, :self.dim]**2, 1).reshape(-1, 1)
-        X2sq = np.sum(self.X2[:, :self.dim]**2, 1).reshape(-1, 1)
-        self._diff = X1sq + X2sq.T - 2*self.X1[:, :self.dim]@self.X2[:, :self.dim].T
-        self._K = self.sigma * np.exp(-0.5*self.beta*self._diff)
-        self.diag = False
+        if X2.shape[1] < X1.shape[1]:
+            Xtmp = np.zeros((X2.shape[0], X1.shape[1]))
+            Xtmp[:, :X2.shape[1]] = X2
+            Xtmp[:, X2.shape[1]:] = np.mean(X1[:,X2.shape[1]:], 0)
+            X2 = Xtmp
+        super().__init__(X1, X2, sigma=sigma, beta=beta)
 
 
 class ARD():
