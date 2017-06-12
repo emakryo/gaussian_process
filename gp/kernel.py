@@ -151,11 +151,11 @@ class PrivMultRBF():
     def __call__(self):
         alpha = self.alpha
         if self.Z1 is None and self.Z2 is None:
-            return self.kx()**alpha*np.mean(self.kz())**(1-alpha)
+            return self.kx()*np.mean(self.kz())
         elif self.Z2 is None:
-            return self.kx()**alpha*np.mean(self.kz(), axis=1).reshape(-1, 1)**(1-alpha)
+            return self.kx()*np.mean(self.kz(), axis=1).reshape(-1, 1)
         else:
-            return self.kx()**alpha*self.kz()**(1-alpha)
+            return self.kx()*self.kz()
 
 class IncompleteRBF():
     def __init__(self, X1, X2=None, Zsample=None, alpha=0.5,

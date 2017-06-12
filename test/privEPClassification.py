@@ -136,11 +136,11 @@ def debug0():
 
 def debug():
     from gp.kernel import PrivMultRBF
-    X = np.random.rand(500, 3)
-    Z = np.random.rand(500, 10)
+    X = np.random.rand(10, 3)
+    Z = np.random.rand(10, 10)
     K1 = PrivMultRBF((X, Z), (X, Z))()
-    K12 = PrivMultRBF((X, Z), (X[:300], None), Zsample=Z)()
-    K2 = PrivMultRBF((X[:300], None), (X[:300], None), Zsample=Z)()
+    K12 = PrivMultRBF((X, Z), (X, None), Zsample=Z)()
+    K2 = PrivMultRBF((X, None), (X, None), Zsample=Z)()
     K = np.concatenate([
         np.concatenate([K1, K12], axis=1),
         np.concatenate([K12.T, K2], axis=1)])
