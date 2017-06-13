@@ -102,12 +102,11 @@ def test2():
         print("alphas =", alphas, file=f)
         print("repeat =", repeat, file=f)
 
-    p = ProgressBar(repeat*len(xdims)*len(alphas))
-    i = 1
+    p = ProgressBar(max_value=repeat*len(xdims)*len(alphas))
+    i = 0
+    p.update(i)
 
     for _ in range(repeat):
-        p.update(i)
-        i += 1
         idx = np.random.permutation(len(y))
         Xtr = X[idx[:ntrain]]
         ytr = y[idx[:ntrain]]
@@ -131,6 +130,8 @@ def test2():
                 model.fit(Xtr[:, :xdim], ytr, Xtr)
                 accuracy = model.score(Xte[:, :xdim], yte)
 
+                i += 1
+                p.update(i)
                 result.append({'xdim':xdim, 'alpha':alpha, 'accuracy':accuracy,
                     'sigmax':sigmax, 'betax':betax, 'sigmaz':sigmaz, 'betaz':betaz})
 
