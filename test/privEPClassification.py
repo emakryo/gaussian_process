@@ -4,6 +4,7 @@ import data
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import GridSearchCV
+from progressbar import ProgressBar
 
 try:
     from gp import privEPClassification, kernel
@@ -80,8 +81,8 @@ def test1():
 def test2():
     X, y = data.australian()
     ntrain = 300
-    params = {'sigma': 2**np.arange(-3.0, 6.0),
-              'beta': 2**np.arange(-3.0, 6.0)}
+    params = {'sigma': 2**np.arange(-3.0, 6.0, 2.0),
+              'beta': 2**np.arange(-3.0, 6.0, 2.0)}
     xdims = range(2, X.shape[1])
     alphas = np.arange(0, 1.2, 0.2)
     cv = 5
@@ -90,6 +91,7 @@ def test2():
 
     with open('meta.txt', 'w') as f:
         print("Classification with privileged information by EPGPC", file=f)
+        print("Australian data", file=f)
         print("X.shape =", X.shape, file=f)
         print("ntrain =", ntrain, file=f)
         print("params =", params, file=f)
@@ -98,7 +100,12 @@ def test2():
         print("alphas =", alphas, file=f)
         print("repeat =", repeat, file=f)
 
+    p = ProgressBar(repeat*len(xdims)*len(alphas))
+    i = 1
+
     for _ in range(repeat):
+        p.update(i)
+        i += 1
         idx = np.random.permutation(len(y))
         Xtr = X[idx[:ntrain]]
         ytr = y[idx[:ntrain]]

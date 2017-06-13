@@ -61,16 +61,54 @@ def download(filename, url):
         c.perform()
         c.close()
 
-def australian():
-    url = 'https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/australian_scale'
-    filename = "australian_scale"
+def download_if_not(filename, url):
     if filename not in os.listdir(os.path.dirname(__file__)):
         download(filename, url)
 
+def libsvm_load(filename, missing=None):
     with open(filename) as f:
         data = [[v.split(':') for v in line.split()] for line in f.readlines()]
 
     y, x = zip(*[(int(line[0][0]), line[1:]) for line in data])
     x = pd.DataFrame([{int(v[0]): float(v[1]) for v in line} for line in x])
-    x = x.loc[:, x.notnull().all(axis=0)]
+    if missing is None:
+        x = x.loc[:, x.notnull().all(axis=0)]
+    elif missing is not True:
+        x[x.isnull()] = missing
     return np.array(x), np.array(y)
+
+def australian():
+    url = 'https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/australian_scale'
+    filename = "australian_scale"
+    download_if_not(filename, url)
+
+    with open(filename) as f:
+        data = [[v.split(':') for v in line.split()] for line in f.readlines()]
+
+    return libsvm_load(filename)
+
+def splice():
+    url = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/splice_scale"
+    filename = "splice_scale"
+    download_if_not(filename, url)
+
+    return libsvm_load(filename)
+
+def mushrooms():
+    url = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/mushrooms"
+    filename = "mushrooms"
+    download_if_not(filename, url)
+    
+    return libsvm_load(filename, missing=0)
+
+def ionosphere():
+    url = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/ionosphere_scale"
+    filename = "inoshere_scale"
+    download_if_not(filename, url)
+    return libsvm_load(filename, 0)
+
+def heart():
+    url = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/heart_scale"
+    filename = "heart_scale"
+    download_if_not(filename, url)
+    return libsvm_load(filename, 0)
