@@ -1,12 +1,13 @@
 import numpy as np
 from scipy.stats import norm
 from scipy.optimize import minimize
+from sklearn.metrics import accuracy_score
 from . import kernel
 
 
 class EPClassification():
-    def __init__(self, kernel=kernel.RBF, sigma=1, beta=1):
-        self.kernel = kernel
+    def __init__(self, kern=kernel.RBF, sigma=1, beta=1):
+        self.kern = kern
         self.k_params = {'sigma': sigma, 'beta': beta}
 
     def fit(self, X, y):
@@ -17,7 +18,7 @@ class EPClassification():
         self._fit()
 
     def _fit(self):
-        K = self.kernel(self.X, **self.k_params)()
+        K = self.kern(self.X, **self.k_params)()
         nuTilde = np.zeros(self.n)
         tauTilde = np.zeros(self.n)
         Sigma = np.copy(K)
@@ -65,8 +66,8 @@ class EPClassification():
         self.z = Ssq.reshape(-1)*np.linalg.solve(L.T, w)
 
     def posterior(self, Xs):
-        Ks = self.kernel(self.X, Xs, **self.k_params)()
-        Kss = np.diag(self.kernel(Xs, Xs, **self.k_params)())
+        Ks = self.kern(self.X, Xs, **self.k_params)()
+        Kss = np.diag(self.kern(Xs, Xs, **self.k_params)())
         return self._posterior(Ks, Kss)
 
     def _posterior(self, Ks, Kss):
@@ -109,15 +110,27 @@ class EPClassification():
         U = np.linalg.solve(self.L, np.diag(self.Ssq.reshape(-1)))
         b = nuTilde - U.T@U@self.K@self.nuTilde
         R = b@b.T - U.T@U
-        dKdtheta = self.kernel(self.X, **self.k_params).dtheta()
+        dKdtheta = self.kern(self.X, **self.k_params).dtheta()
         return 0.5*np.trace(np.einsum('ij,jkl->ikl', R, dKdtheta))
 
     def empiricalBayes(self):
         def obj(x):
-            self.k_params = self.kernel.param_dict(x)
+            self.k_params = self.kern.param_dict(x)
             self.fit(self.X, self.y)
             return -self.log_ml()
 
         res = minimize(obj, [1, 1], bounds=[(1e-5, None), (1e-5, None)])
-        self.k_params = self.kernel.param_dict(res.x)
+        self.k_params = self.kern.param_dict(res.x)
 
+    def get_params(self, deep=True):
+        return self.k_params
+
+    def set_params(self, **params):
+        for k in params:
+            if k in self.k_params:
+                self.k_params[k] = params[k]
+
+        return self
+
+    def score(self, X, y):
+        return accuracy_score(y, self.predict(X))

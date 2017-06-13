@@ -6,8 +6,8 @@ from .EPClassification import EPClassification
 
 
 class privEPClassification(EPClassification):
-    def __init__(self, kernel=kernel.PrivAddRBF, **k_params):
-        self.kernel = kernel
+    def __init__(self, kern=kernel.PrivAddRBF, **k_params):
+        self.kern = kern
         self.k_params = k_params
 
     def fit(self, X, y, Z):
@@ -22,7 +22,7 @@ class privEPClassification(EPClassification):
         self._fit()
 
     def posterior(self, Xs):
-        Ks = self.kernel(self.X, (Xs, None), Zsample=self.X[1], **self.k_params)()
-        Kss = np.diag(self.kernel((Xs, None), (Xs, None), Zsample=self.X[1],
+        Ks = self.kern(self.X, (Xs, None), Zsample=self.X[1], **self.k_params)()
+        Kss = np.diag(self.kern((Xs, None), (Xs, None), Zsample=self.X[1],
             **self.k_params)())
         return self._posterior(Ks, Kss)

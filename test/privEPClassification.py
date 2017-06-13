@@ -3,7 +3,7 @@ import pandas as pd
 import data
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
-from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
 
 try:
     from gp import privEPClassification, kernel
@@ -75,9 +75,60 @@ def test1():
                     'test_accuracy':test_acc,
                     'train_accuracy':train_acc})
 
-    pd.DataFrame(result).to_csv('mult_priv_result')
+    pd.DataFrame(result).to_csv('priv_result')
 
 def test2():
+    X, y = data.australian()
+    ntrain = 300
+    params = {'sigma': 2**np.arange(-3.0, 6.0),
+              'beta': 2**np.arange(-3.0, 6.0)}
+    xdims = range(2, X.shape[1])
+    alphas = np.arange(0, 1.2, 0.2)
+    cv = 5
+    repeat = 5
+    result = []
+
+    with open('meta.txt', 'w') as f:
+        print("Classification with privileged information by EPGPC", file=f)
+        print("X.shape =", X.shape, file=f)
+        print("ntrain =", ntrain, file=f)
+        print("params =", params, file=f)
+        print("cv =", cv, file=f)
+        print("xdims =", xdims, file=f)
+        print("alphas =", alphas, file=f)
+        print("repeat =", repeat, file=f)
+
+    for _ in range(repeat):
+        idx = np.random.permutation(len(y))
+        Xtr = X[idx[:ntrain]]
+        ytr = y[idx[:ntrain]]
+        Xte = X[idx[ntrain:]]
+        yte = y[idx[ntrain:]]
+
+        model = GridSearchCV(EPClassification(), params, cv=cv, n_jobs=-1)
+        model.fit(Xtr, ytr)
+        sigmaz = model.best_params_['sigma']
+        betaz = model.best_params_['beta']
+
+        for xdim in xdims:
+            model = GridSearchCV(EPClassification(), params, cv=cv, n_jobs=-1)
+            model.fit(Xtr[:, :xdim], ytr)
+            sigmax = model.best_params_['sigma']
+            betax = model.best_params_['beta']
+
+            for alpha in alphas:
+                model = privEPClassification(alpha=alpha,
+                        sigmax=sigmax, betax=betax, sigmaz=sigmaz, betaz=betaz)
+                model.fit(Xtr[:, :xdim], ytr, Xtr)
+                accuracy = model.score(Xte[:, :xdim], yte)
+
+                result.append({'xdim':xdim, 'alpha':alpha, 'accuracy':accuracy,
+                    'sigmax':sigmax, 'betax':betax, 'sigmaz':sigmaz, 'betaz':betaz})
+
+    pd.DataFrame(result).to_csv('result.csv')
+
+
+def test3():
     assert False
     X, y = data.australian()
 
@@ -128,7 +179,7 @@ def debug():
     print(np.linalg.eigvals(K))
 
 if __name__ == "__main__":
-    test1()
+    test2()
 else:
     X, y = data.twin(10)
     model = EPClassification(X, y)
