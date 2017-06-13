@@ -1,3 +1,4 @@
+import datetime
 import numpy as np
 import pandas as pd
 import data
@@ -79,6 +80,7 @@ def test1():
     pd.DataFrame(result).to_csv('priv_result')
 
 def test2():
+    time = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
     X, y = data.australian()
     ntrain = 300
     params = {'sigma': 2**np.arange(-3.0, 6.0, 2.0),
@@ -89,7 +91,7 @@ def test2():
     repeat = 5
     result = []
 
-    with open('meta.txt', 'w') as f:
+    with open('meta%s.txt'%time, 'w') as f:
         print("Classification with privileged information by EPGPC", file=f)
         print("Australian data", file=f)
         print("X.shape =", X.shape, file=f)
@@ -132,7 +134,7 @@ def test2():
                 result.append({'xdim':xdim, 'alpha':alpha, 'accuracy':accuracy,
                     'sigmax':sigmax, 'betax':betax, 'sigmaz':sigmaz, 'betaz':betaz})
 
-    pd.DataFrame(result).to_csv('result.csv')
+    pd.DataFrame(result).to_csv('result%s.csv'%time)
 
 
 def test3():
