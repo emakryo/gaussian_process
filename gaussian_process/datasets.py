@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.utils import check_random_state
-from gaussian_process.kernel import RBF
+from .kernels import RBF
 
 
 def generate_gp(n_samples=50, n_features=1, noise=0.01, range=(-3, 3),

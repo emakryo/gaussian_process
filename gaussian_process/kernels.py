@@ -10,7 +10,7 @@ class RBF(BaseEstimator):
         $ k(x_i, x_j) = \sigma \exp{ \beta \|x_i - x_j\|^2 } $
     """
 
-    param_bounds = [(1e-5, None), (1e-5, None)]
+    param_bounds = {'beta':(1e-5, None), 'sigma':(1e-5, None)}
 
     def __init__(self, sigma=1, beta=1):
         self.sigma = sigma
@@ -33,14 +33,14 @@ class RBF(BaseEstimator):
             X2sq = np.sum(X2 ** 2, 1).reshape(-1, 1)
             diff = X1sq + X2sq.T - 2 * X1 @ X2.T
             K = self.sigma * np.exp(-0.5 * self.beta * diff)
-            dbeta = - 0.5 * K * diff
-            dsigma = K/self.sigma
+            dbeta = -0.5 * diff * K
+            dsigma = K / self.sigma
         else:
             K = self.sigma * np.ones(min(n1, n2))
             dbeta = np.zeros(min(n1, n2))
             dsigma = np.ones(min(n1, n2))
 
-        dtheta = np.stack([dbeta, dsigma], axis=2)
+        dtheta = {'sigma':dsigma, 'beta':dbeta}
         return KernelValue(K, dtheta)
 
 
