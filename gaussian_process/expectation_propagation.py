@@ -1,11 +1,12 @@
 import numpy as np
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.base import ClassifierMixin
 from sklearn.utils import check_X_y
 from scipy.stats import norm
 from scipy.optimize import minimize
+from .base import BayesEstimator
 
 
-class GaussianProcessExpectationPropagation(BaseEstimator, ClassifierMixin):
+class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
     """Gaussian process classification with expectation propagation algorithm"""
 
     def __init__(self, cov):
@@ -144,29 +145,3 @@ class GaussianProcessExpectationPropagation(BaseEstimator, ClassifierMixin):
             self.set_opt_params(before_params, opt_param_names)
 
         self._fit()
-
-    def get_opt_params(self, param_names):
-        params = self.get_params()
-        opt_params = []
-        for k in param_names:
-            if np.isscalar(params[k]):
-                opt_params.append(params[k])
-            else:
-                opt_params.extend(params[k].flatten())
-
-        return np.array(opt_params)
-
-    def set_opt_params(self, opt_params, param_names):
-        params = self.get_params()
-        index = 0
-        set_params = {}
-        for k in param_names:
-            if np.isscalar(params[k]):
-                set_params[k] = opt_params[index]
-                index += 1
-            else:
-                shape = params[k].shape
-                val = opt_params[index:index+np.prod(shape)]
-                set_params[k] = np.array(val).reshape(*shape)
-
-        self.set_params(**set_params)
