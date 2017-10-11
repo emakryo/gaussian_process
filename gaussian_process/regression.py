@@ -64,8 +64,16 @@ class GaussianProcessRegression(BaseEstimator, RegressorMixin):
         for param in K.dtheta:
             K_grads['cov__'+param] = K.dtheta[param]
 
-        return np.array([0.5 * np.sum(A * K_grads[k], axis=(0, 1))
-                         for k in self.opt_params])
+        grads = []
+        for k in self.opt_params:
+            if K_grads[k].ndim == 2:
+                grads.append(0.5 * np.sum(A * K_grads[k]))
+            elif K_grads[k].ndim == 3:
+                grads.extend(0.5 * np.sum(A * K_grads[k], axis=(1, 2)))
+            else:
+                raise ValueError()
+
+        return np.array(grads)
 
     def empirical_bayes(self, random=False, verbose=False, opt_params=None):
         if opt_params is not None:
@@ -82,9 +90,18 @@ class GaussianProcessRegression(BaseEstimator, RegressorMixin):
             return (-self.log_marginal_likelihood(),
                     -self.grad_log_marginal_likelihood())
 
-        bounds = [self.param_bounds[k] for k in self.opt_params]
+        bounds = []
+        for k in self.opt_params:
+            if type(self.param_bounds[k][0]) is tuple:
+                bounds.extend(self.param_bounds[k])
+            else:
+                bounds.append(self.param_bounds[k])
+
         res = minimize(fun, init, method='L-BFGS-B', jac=True,
                        bounds=bounds, options={'disp': verbose})
+
+        if verbose:
+            print(res.message)
 
         if res.fun < before[1]:
             self.set_opt_params(res.x)
@@ -101,7 +118,7 @@ class GaussianProcessRegression(BaseEstimator, RegressorMixin):
             else:
                 opt_params.extend(params[k].flatten())
 
-        return opt_params
+        return np.array(opt_params)
 
     def set_opt_params(self, opt_params):
         current_params = self.get_params()
