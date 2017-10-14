@@ -52,14 +52,12 @@ class GaussianProcessDistillation(BayesEstimator, ClassifierMixin):
                 # cavity distribution
                 tau_bar = 1.0 / Sigma[i, i] - tau_tilde[i]
                 nu_bar = mu[i] / Sigma[i, i] - nu_tilde[i]
-                dom = tau_bar**2+tau_bar
+                dom = tau_bar ** 2 + tau_bar
                 z = self.ytr[i] * nu_bar / np.sqrt(dom)
                 ratio = np.exp(norm.logpdf(z) - norm.logcdf(z))
                 mu_hat = nu_bar / tau_bar + self.ytr[i] * ratio / np.sqrt(dom)
                 sigma_hat = 1 / tau_bar - ratio / dom * (z + ratio)
                 dtau_tilde = 1 / sigma_hat - tau_bar - tau_tilde[i]
-                #tau_tildeNext = tau_tilde[i] + dTauTilde
-                #nuTildeNext = muHat / sigmaHat - nuBar
                 tau_tilde[i] += dtau_tilde
                 nu_tilde[i] = mu_hat / sigma_hat - nu_bar
                 Sigma -= (dtau_tilde / (1 + dtau_tilde * Sigma[i, i]) *

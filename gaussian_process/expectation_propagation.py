@@ -16,55 +16,93 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         self.Xtr, self.ytr = check_X_y(X, y)
         self.n, self.dim = self.Xtr.shape
 
-        self._fit()
-
-    def _fit(self):
         K = self.cov(self.Xtr).K
-        nuTilde = np.zeros(self.n)
-        tauTilde = np.zeros(self.n)
-        Sigma = np.copy(K)
-        mu = np.zeros(self.n)
+        self._ep(K)
+
+    def _ep(self, K, fix_index=None, nu_fixed=None, tau_fixed=None):
+        if fix_index is not None:
+            if not isinstance(fix_index, np.ndarray):
+                raise ValueError()
+
+            fix_index = np.array(fix_index, dtype=int)
+            nu_fixed = np.array(nu_fixed)
+            tau_fixed = np.array(tau_fixed)
+            assert len(fix_index) == len(nu_fixed) == len(tau_fixed)
+
+        else:
+            fix_index = np.array([], dtype=int)
+            nu_fixed = np.array([])
+            tau_fixed = np.array([])
+
+        n = K.shape[0]
+        is_fixed = np.zeros(n, dtype=bool)
+        is_fixed[fix_index] = True
+        # Natural parameters of site approximation:
+        # $ \tilde{\tau} = 1 / \sigma^2 $
+        # $ \tilde{\nu} = \tilde{\tau} \tilde{\mu} = \tilde{sigma}^{-2} \tilde{\mu} $
+        # where site approximation is
+        # $ \mathcal{N}(\tilde{\mu}, \tilde{\sigma}^{-2} $
+        # `tau_tilde = $ \tilde{\tau} $
+        # `nu_tilde` = $ \tilde{\nu} $
+        tau_tilde = np.zeros(n)
+        nu_tilde = np.zeros(n)
+        tau_tilde[fix_index] = tau_fixed
+        nu_tilde[fix_index] = nu_fixed
+        # Posterior covariance `Sigma` and mean `mu`
+        # $ \Sigma = (K^{-1} + \text{diag}(\tilde{\sigma}^{-2}) \\
+        #          = K - K (K + S^2)^{-1} K \\
+        #          = K - K (K + S^{-2})^{-1} K \\
+        #          = K - K S L L^\top S K $
+        # \mu = \Sigma \tilde{\nu}
+        # where
+        # $ S = \text{diag}(\tilde{\sigma}) $
+        # $ L = \text{cholesky}(I + S K S) $
+        S = np.sqrt(tau_tilde).reshape(-1, 1)
+        L = np.linalg.cholesky(np.eye(n) + S * K * S.T)
+        V = np.linalg.solve(L, S * K)
+        Sigma = K - V.T @ V
+        mu = Sigma @ nu_tilde
         eps = 1e-5
         for c in range(100):
-            tauTildeOld = np.copy(tauTilde)
-            nuTildeOld = np.copy(nuTilde)
-            for i in range(self.n):
-                tauBar = 1.0/Sigma[i, i] - tauTilde[i]
-                nuBar = mu[i]/Sigma[i, i] - nuTilde[i]
-                dom = tauBar**2+tauBar
-                z = self.ytr[i] * nuBar / np.sqrt(dom)
+            tau_tilde_old = np.copy(tau_tilde)
+            nu_tilde_old = np.copy(nu_tilde)
+            for i in range(n):
+                if is_fixed[i]:
+                    continue
+                # cavity distribution
+                tau_bar = 1.0 / Sigma[i, i] - tau_tilde[i]
+                nu_bar = mu[i] / Sigma[i, i] - nu_tilde[i]
+                dom = tau_bar ** 2 + tau_bar
+                z = self.ytr[i] * nu_bar / np.sqrt(dom)
                 ratio = np.exp(norm.logpdf(z) - norm.logcdf(z))
-                muHat = nuBar / tauBar + self.ytr[i]*ratio/np.sqrt(dom)
-                sigmaHat = 1/tauBar - ratio / dom * (z+ratio)
-                dTauTilde = 1/sigmaHat - tauBar - tauTilde[i]
-                tauTildeNext = tauTilde[i] + dTauTilde
-                nuTildeNext = muHat / sigmaHat - nuBar
-                tauTilde[i] = tauTildeNext
-                nuTilde[i] = nuTildeNext
-                Sigma -= (dTauTilde/(1+dTauTilde*Sigma[i, i]) *
+                mu_hat = nu_bar / tau_bar + self.ytr[i] * ratio / np.sqrt(dom)
+                sigma_hat = 1 / tau_bar - ratio / dom * (z + ratio)
+                dtau_tilde = 1 / sigma_hat - tau_bar - tau_tilde[i]
+                tau_tilde[i] += dtau_tilde
+                nu_tilde[i] = mu_hat / sigma_hat - nu_bar
+                Sigma -= (dtau_tilde / (1 + dtau_tilde * Sigma[i, i]) *
                           np.outer(Sigma[i], Sigma[i]))
-                mu = Sigma@nuTilde
+                mu = Sigma @ nu_tilde
 
-            Ssq = np.sqrt(tauTilde).reshape(-1, 1)
-            L = np.linalg.cholesky(np.eye(self.n)+Ssq*K*Ssq.T)
-            V = np.linalg.solve(L, Ssq*K)
-            Sigma = K - V.T@V
-            mu = Sigma@nuTilde
-
-            diff = (np.sum((tauTildeOld-tauTilde)**2) +
-                    np.sum((nuTildeOld-nuTilde)**2))
+            S = np.sqrt(tau_tilde).reshape(-1, 1)
+            L = np.linalg.cholesky(np.eye(n)+ S * K * S.T)
+            V = np.linalg.solve(L, S * K)
+            Sigma = K - V.T @ V
+            mu = Sigma@nu_tilde
+            diff = (np.sum((tau_tilde_old - tau_tilde) ** 2) +
+                    np.sum((nu_tilde_old - nu_tilde) ** 2))
             if diff < eps:
                 break
 
-        self.nuTilde = nuTilde
-        self.tauTilde = tauTilde
+        self.nu_tilde = nu_tilde
+        self.tau_tilde = tau_tilde
         self.mu = mu
         self.Sigma = Sigma
         self.K = K
         self.L = L
-        self.Ssq = Ssq
-        w = np.linalg.solve(L, Ssq*K@nuTilde)
-        self.z = Ssq.reshape(-1)*np.linalg.solve(L.T, w)
+        self.S = S
+        w = np.linalg.solve(L, S * K @ nu_tilde)
+        self.z = S.reshape(-1) * np.linalg.solve(L.T, w)
 
     def posterior(self, X):
         Ks = self.cov(self.Xtr, X).K
@@ -72,8 +110,8 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         return self._posterior(Ks, Kss)
 
     def _posterior(self, Ks, Kss):
-        mean = Ks.T @ (self.nuTilde - self.z)
-        v = np.linalg.solve(self.L, self.Ssq*Ks)
+        mean = Ks.T @ (self.nu_tilde - self.z)
+        v = np.linalg.solve(self.L, self.S * Ks)
         var = Kss - np.sum(v**2, 0)
         return mean, var
 
@@ -89,21 +127,22 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         return sum(self.log_ml_terms())
 
     def log_ml_terms(self):
-        tauBar = 1.0/np.diag(self.Sigma) - self.tauTilde
-        nuBar = self.mu/np.diag(self.Sigma) - self.nuTilde
+        tau_bar = 1 / np.diag(self.Sigma) - self.tau_tilde
+        nu_bar = self.mu / np.diag(self.Sigma) - self.nu_tilde
         t0 = -np.sum(np.log(np.diag(self.L)))
-        t1 = 0.5*np.sum(np.log(1+self.tauTilde/tauBar))
-        t2 = 0.5*self.nuTilde.dot(self.K@self.nuTilde)
-        w = np.linalg.solve(self.L, self.Ssq*self.K@self.nuTilde)
-        t3 = -0.5*w.dot(w)
-        t4 = -0.5*(self.nuTilde**2).dot(1/(tauBar+self.tauTilde))
-        muBar = nuBar/tauBar
-        t5 = 0.5*nuBar.dot((self.tauTilde*muBar-2*self.nuTilde)/(tauBar+self.tauTilde))
-        t6 = np.sum(norm.logcdf(self.ytr*muBar/np.sqrt(1+1/tauBar)))
+        t1 = 0.5 * np.sum(np.log(1 + self.tau_tilde / tau_bar))
+        t2 = 0.5 * self.nu_tilde.dot(self.K @ self.nu_tilde)
+        w = np.linalg.solve(self.L, self.S * self.K @ self.nu_tilde)
+        t3 = -0.5 * w.dot(w)
+        t4 = -0.5 * (self.nu_tilde ** 2).dot(1 / (tau_bar + self.tau_tilde))
+        mu_bar = nu_bar/tau_bar
+        t5 = 0.5 * nu_bar.dot((self.tau_tilde * mu_bar - 2 * self.nu_tilde) /
+                              (tau_bar + self.tau_tilde))
+        t6 = np.sum(norm.logcdf(self.ytr * mu_bar / np.sqrt(1 + 1 / tau_bar)))
 
         # for debugging
-        t7 = 0.5*np.sum(np.log(self.tauTilde))
-        t8 = -0.5*self.nuTilde.dot(self.nuTilde/self.tauTilde)
+        t7 = 0.5 * np.sum(np.log(self.tau_tilde))
+        t8 = -0.5 * self.nu_tilde.dot(self.nu_tilde / self.tau_tilde)
         return (t0,t1,t2,t3,t4,t5,t6,t7,t8,-t7,-t8)
 
     def dlog_mldtheta(self):
@@ -121,7 +160,7 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
 
         def obj(x):
             self.set_opt_params(x, opt_param_names)
-            self._fit()
+            self._ep(self.cov(self.Xtr).K)
             return -self.log_ml()
 
         before_obj = -self.log_ml()
@@ -138,10 +177,11 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
 
         if verbose:
             print(res.message)
+            print(res.x)
 
         if res.fun < before_obj:
             self.set_opt_params(res.x, opt_param_names)
         else:
             self.set_opt_params(before_params, opt_param_names)
 
-        self._fit()
+        self._ep(self.cov(self.Xtr).K)
