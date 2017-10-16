@@ -2,7 +2,6 @@ import numpy as np
 from sklearn.base import ClassifierMixin
 from sklearn.utils import check_X_y
 from scipy.stats import norm
-from scipy.optimize import minimize
 from .base import BayesEstimator
 
 

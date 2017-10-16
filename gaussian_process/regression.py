@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.linalg import cholesky, solve_triangular, solve, inv
-from scipy.optimize import minimize
-from matplotlib import pyplot as plt
-from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.base import RegressorMixin
 from sklearn.utils import check_X_y
 from .base import BayesEstimator
 
