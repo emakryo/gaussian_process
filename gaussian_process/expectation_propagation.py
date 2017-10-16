@@ -11,11 +11,11 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
 
     def __init__(self, cov):
         self.cov = cov
+        self.param_bounds = {'cov__'+k: v for k, v in cov.param_bounds.items()}
 
     def fit(self, X, y):
         self.Xtr, self.ytr = check_X_y(X, y)
         self.n, self.dim = self.Xtr.shape
-
         K = self.cov(self.Xtr).K
         self._ep(K)
 
@@ -123,10 +123,11 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         pi = self.decision_function(X)
         return np.sign(pi-0.5)
 
-    def log_ml(self):
+    def log_marginal_likelihood(self):
         return sum(self.log_ml_terms())
 
     def log_ml_terms(self):
+        # cavity distribution
         tau_bar = 1 / np.diag(self.Sigma) - self.tau_tilde
         nu_bar = self.mu / np.diag(self.Sigma) - self.nu_tilde
         t0 = -np.sum(np.log(np.diag(self.L)))
@@ -139,49 +140,14 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         t5 = 0.5 * nu_bar.dot((self.tau_tilde * mu_bar - 2 * self.nu_tilde) /
                               (tau_bar + self.tau_tilde))
         t6 = np.sum(norm.logcdf(self.ytr * mu_bar / np.sqrt(1 + 1 / tau_bar)))
-
         # for debugging
         t7 = 0.5 * np.sum(np.log(self.tau_tilde))
         t8 = -0.5 * self.nu_tilde.dot(self.nu_tilde / self.tau_tilde)
         return (t0,t1,t2,t3,t4,t5,t6,t7,t8,-t7,-t8)
 
-    def dlog_mldtheta(self):
-        nuTilde = self.nuTilde.reshape(-1, 1)
-        U = np.linalg.solve(self.L, np.diag(self.Ssq.reshape(-1)))
-        b = nuTilde - U.T@U@self.K@self.nuTilde
-        R = b@b.T - U.T@U
-        dKdtheta = self.kern(self.X, **self.k_params).dtheta()
-        return 0.5*np.trace(np.einsum('ij,jkl->ikl', R, dKdtheta))
-
-    def empirical_bayes(self, opt_param_names=None, verbose=False):
-        if opt_param_names is None:
-            opt_param_names = [k for k, v in self.get_params().items()
-                               if np.isscalar(v) or isinstance(v, np.ndarray)]
-
-        def obj(x):
-            self.set_opt_params(x, opt_param_names)
-            self._ep(self.cov(self.Xtr).K)
-            return -self.log_ml()
-
-        before_obj = -self.log_ml()
-        before_params = self.get_opt_params(opt_param_names)
-        init = before_params
-        bounds = []
-        for k, v in self.cov.param_bounds.items():
-            if isinstance(v[0], tuple):
-                bounds.extend(v)
-            else:
-                bounds.append(v)
-
-        res = minimize(obj, init, bounds=bounds)
-
-        if verbose:
-            print(res.message)
-            print(res.x)
-
-        if res.fun < before_obj:
-            self.set_opt_params(res.x, opt_param_names)
-        else:
-            self.set_opt_params(before_params, opt_param_names)
-
-        self._ep(self.cov(self.Xtr).K)
+    def grad_log_marginal_likelihood(self):
+        U = np.linalg.solve(self.L, np.diag(self.S.reshape(-1)))
+        b = (self.nu_tilde - U.T @ U @ self.K @ self.nu_tilde).reshape(-1, 1)
+        R = b @ b.T - U.T @ U
+        K_grads = self.cov(self.Xtr).dtheta
+        return {'cov__'+k: 0.5*np.trace(R @ v) for k, v in K_grads.items()}
