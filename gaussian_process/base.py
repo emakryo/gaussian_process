@@ -7,7 +7,15 @@ from sklearn.base import BaseEstimator
 class BayesEstimator(BaseEstimator, metaclass=ABCMeta):
 
     @abstractmethod
-    def fit(self):
+    def refit(self):
+        ...
+
+    @abstractmethod
+    def log_marginal_likelihood(self):
+        ...
+
+    @abstractmethod
+    def grad_log_marginal_likelihood(self):
         ...
 
     def empirical_bayes(self, opt_param_names=None, random=False, verbose=False):
@@ -24,7 +32,7 @@ class BayesEstimator(BaseEstimator, metaclass=ABCMeta):
 
         def fun(params):
             self.set_opt_params(params, opt_param_names)
-            self.fit(self.Xtr, self.ytr)
+            self.refit()
             grads = self.grad_log_marginal_likelihood()
             return (-self.log_marginal_likelihood(),
                     -np.concatenate([grads[k].flatten()

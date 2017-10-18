@@ -4,6 +4,7 @@ from sklearn.utils import check_X_y
 from scipy.stats import norm
 from .base import BayesEstimator
 
+eps = 1e-8
 
 class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
     """Gaussian process classification with expectation propagation algorithm"""
@@ -18,14 +19,14 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         K = self.cov(self.Xtr).K
         self._ep(K)
 
-    def _ep(self, K, fix_index=None, nu_fixed=None, tau_fixed=None):
-        if fix_index is not None:
-            if not isinstance(fix_index, np.ndarray):
-                raise ValueError()
+    def refit(self):
+        self.fit(self.Xtr, self.ytr)
 
+    def _ep(self, K, fix_index=None, nu_fixed=None, tau_fixed=None, shuffle=True):
+        if fix_index is not None:
             fix_index = np.array(fix_index, dtype=int)
-            nu_fixed = np.array(nu_fixed)
-            tau_fixed = np.array(tau_fixed)
+            nu_fixed = np.array(nu_fixed, dtype=float)
+            tau_fixed = np.array(tau_fixed, dtype=float)
             assert len(fix_index) == len(nu_fixed) == len(tau_fixed)
 
         else:
@@ -34,6 +35,7 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
             tau_fixed = np.array([])
 
         n = K.shape[0]
+        K = K + eps * np.eye(n)
         is_fixed = np.zeros(n, dtype=bool)
         is_fixed[fix_index] = True
         # Natural parameters of site approximation:
@@ -61,11 +63,13 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         V = np.linalg.solve(L, S * K)
         Sigma = K - V.T @ V
         mu = Sigma @ nu_tilde
-        eps = 1e-5
+        order = np.arange(n)
         for c in range(100):
             tau_tilde_old = np.copy(tau_tilde)
             nu_tilde_old = np.copy(nu_tilde)
-            for i in range(n):
+            if shuffle:
+                order = np.random.permutation(n)
+            for i in order:
                 if is_fixed[i]:
                     continue
                 # cavity distribution
@@ -88,9 +92,9 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
             V = np.linalg.solve(L, S * K)
             Sigma = K - V.T @ V
             mu = Sigma@nu_tilde
-            diff = (np.sum((tau_tilde_old - tau_tilde) ** 2) +
-                    np.sum((nu_tilde_old - nu_tilde) ** 2))
-            if diff < eps:
+            tau_diff = np.sum((tau_tilde_old - tau_tilde) ** 2)
+            nu_diff = np.sum((nu_tilde_old - nu_tilde) ** 2)
+            if tau_diff < eps and nu_diff < eps:
                 break
 
         self.nu_tilde = nu_tilde
@@ -122,10 +126,7 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         pi = self.decision_function(X)
         return np.sign(pi-0.5)
 
-    def log_marginal_likelihood(self):
-        return sum(self.log_ml_terms())
-
-    def log_ml_terms(self):
+    def log_marginal_likelihood(self, splitted_terms=False):
         # cavity distribution
         tau_bar = 1 / np.diag(self.Sigma) - self.tau_tilde
         nu_bar = self.mu / np.diag(self.Sigma) - self.nu_tilde
@@ -135,18 +136,32 @@ class GaussianProcessExpectationPropagation(BayesEstimator, ClassifierMixin):
         w = np.linalg.solve(self.L, self.S * self.K @ self.nu_tilde)
         t3 = -0.5 * w.dot(w)
         t4 = -0.5 * (self.nu_tilde ** 2).dot(1 / (tau_bar + self.tau_tilde))
-        mu_bar = nu_bar/tau_bar
+        mu_bar = nu_bar / tau_bar
         t5 = 0.5 * nu_bar.dot((self.tau_tilde * mu_bar - 2 * self.nu_tilde) /
                               (tau_bar + self.tau_tilde))
         t6 = np.sum(norm.logcdf(self.ytr * mu_bar / np.sqrt(1 + 1 / tau_bar)))
         # for debugging
         t7 = 0.5 * np.sum(np.log(self.tau_tilde))
         t8 = -0.5 * self.nu_tilde.dot(self.nu_tilde / self.tau_tilde)
-        return (t0,t1,t2,t3,t4,t5,t6,t7,t8,-t7,-t8)
 
-    def grad_log_marginal_likelihood(self):
+        if splitted_terms:
+            return (t0, t1, t2, t3, t4, t5, t6)
+        else:
+            return sum((t0, t1, t2, t3, t4, t5, t6))
+
+    def grad_log_marginal_likelihood(self, splitted_terms=False):
+        kernel = self.cov(self.Xtr)
+        K = kernel.K
+        K_grads = {}
+        for k, v in kernel.dtheta.items():
+            K_grads['cov__'+k] = v
+        return {k: v if splitted_terms else np.sum(v) for k, v in
+                self._grad_log_marginal_likelihood(K, K_grads).items()}
+
+    def _grad_log_marginal_likelihood(self, K, K_grads):
         U = np.linalg.solve(self.L, np.diag(self.S.reshape(-1)))
-        b = (self.nu_tilde - U.T @ U @ self.K @ self.nu_tilde).reshape(-1, 1)
+        K += eps * np.eye(self.n)
+        b = (self.nu_tilde - U.T @ U @ K @ self.nu_tilde).reshape(-1, 1)
         R = b @ b.T - U.T @ U
-        K_grads = self.cov(self.Xtr).dtheta
-        return {'cov__'+k: 0.5*np.trace(R @ v) for k, v in K_grads.items()}
+        return {k: [0.5 * np.trace(b @ b. T @ v), 0.5 * np.trace(U.T @ U @ v)]
+                for k, v in K_grads.items()}

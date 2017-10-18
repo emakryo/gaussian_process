@@ -22,6 +22,9 @@ class GaussianProcessRegression(BayesEstimator, RegressorMixin):
         if empirical_bayes:
             self.empirical_bayes()
 
+    def refit(self):
+        self.fit(self.Xtr, self.ytr, empirical_bayes=False)
+
     def predict(self, X):
         return self.predict_with_variance(X)[0]
 
